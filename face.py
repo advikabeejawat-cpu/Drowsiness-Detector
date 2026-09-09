@@ -1,4 +1,3 @@
-
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -26,10 +25,11 @@ EYE_CLOSED_TIME = 2.0
 HEAD_TURN_TIME = 2.0
 
 # How often the warning beep repeats
-WARNING_INTERVAL = 3.0
+WARNING_INTERVAL = 1.0
 
 # Threshold for detecting when the head is turned
-HEAD_TURN_THRESHOLD = 0.35
+HEAD_TURN_THRESHOLD1 = 0.3
+HEAD_TURN_THRESHOLD2 = 0.7
 
 closed_start_time = None
 head_turn_start_time = None
@@ -93,7 +93,7 @@ with mp_face_mesh.FaceMesh(
 
                 nose_position = (nose.x - left_face.x) / face_width
 
-                if nose_position < HEAD_TURN_THRESHOLD:
+                if nose_position < HEAD_TURN_THRESHOLD1 or nose_position > HEAD_TURN_THRESHOLD2:
                     head_status = "Looking Away"
 
                     if head_turn_start_time is None:
@@ -126,13 +126,13 @@ with mp_face_mesh.FaceMesh(
 
                     left_eye_points.append([x, y])
 
-                    cv2.circle(
-                        image,
-                        (x, y),
-                        3,
-                        (0, 0, 255),
-                        -1
-                    )
+                    # cv2.circle(
+                    #     image,
+                    #     (x, y),
+                    #     3,
+                    #     (0, 0, 255),
+                    #     -1
+                    # )
 
                 left_eye_points = np.array(left_eye_points)
 
@@ -154,13 +154,13 @@ with mp_face_mesh.FaceMesh(
 
                     right_eye_points.append([x, y])
 
-                    cv2.circle(
-                        image,
-                        (x, y),
-                        3,
-                        (0, 0, 255),
-                        -1
-                    )
+                    # cv2.circle(
+                    #     image,
+                    #     (x, y),
+                    #     3,
+                    #     (0, 0, 255),
+                    #     -1
+                    # )
 
                 right_eye_points = np.array(right_eye_points)
 
@@ -376,16 +376,16 @@ with mp_face_mesh.FaceMesh(
 
 
                 # --------------------------------
-                # FACE MESH
+                # DRAW FACE MESH
                 # --------------------------------
 
-                mp_drawing.draw_landmarks(
-                    image=image,
-                    landmark_list=face_landmarks,
-                    connections=mp_face_mesh.FACEMESH_TESSELATION,
-                    landmark_drawing_spec=custom_spec,
-                    connection_drawing_spec=custom_spec
-                )
+                # mp_drawing.draw_landmarks(
+                #     image=image,
+                #     landmark_list=face_landmarks,
+                #     connections=mp_face_mesh.FACEMESH_TESSELATION,
+                #     landmark_drawing_spec=custom_spec,
+                #     connection_drawing_spec=custom_spec
+                # )
 
         else:
 
