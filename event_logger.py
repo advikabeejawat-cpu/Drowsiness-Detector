@@ -15,6 +15,7 @@
 # ==========================================
 
 import csv
+import os
 from datetime import datetime
 
 
@@ -33,7 +34,7 @@ class EventLogger:
     # RECORD AN EVENT
     # ======================================
 
-    def log_event(self, event_type, start_time, end_time):
+    def log_event(self, event_type, start_time, end_time, person_number=1):
         """
         Records one completed event.
 
@@ -53,7 +54,8 @@ class EventLogger:
             "type": event_type,
             "start": start_time,
             "end": end_time,
-            "duration": duration
+            "duration": duration,
+            "person": person_number,
         }
 
         self.events.append(event)
@@ -148,7 +150,7 @@ class EventLogger:
     # SAVE DATA TO CSV
     # ======================================
 
-    def save_csv(self):
+    def save_csv(self, session_duration=None):
         """
         Saves all session events to a CSV file.
 
@@ -158,7 +160,10 @@ class EventLogger:
 
         timestamp = self.session_start.strftime("%Y-%m-%d_%H%M%S")
 
-        filename = f"session_{timestamp}.csv"
+        filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            f"session_{timestamp}.csv",
+        )
 
         with open(
             filename,
@@ -171,16 +176,29 @@ class EventLogger:
             # Column names
             writer.writerow([
                 "Event Type",
+                "Person",
                 "Start Time",
                 "End Time",
                 "Duration"
             ])
+
+            # Store the observed session boundary so training can include
+            # quiet periods and sessions with no distraction events.
+            if session_duration is not None:
+                writer.writerow([
+                    "Session Duration",
+                    "",
+                    0,
+                    round(session_duration, 2),
+                    round(session_duration, 2),
+                ])
 
             # Write every event
             for event in self.events:
 
                 writer.writerow([
                     event["type"],
+                    event.get("person", 1),
                     round(event["start"], 2),
                     round(event["end"], 2),
                     round(event["duration"], 2)

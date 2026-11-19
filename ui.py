@@ -67,23 +67,17 @@ def draw_card(image, x1, y1, x2, y2, color):
 def draw_ui(
     image,
     main_status,
-    eye_status,
-    head_status,
-    closed_duration,
-    head_turn_duration,
-    drowsy_warning,
-    attention_warning,
     calibrated=True,
     prediction_text="",
     prediction_detail="",
-    average_ear=None,
-    eye_threshold=None
+    people_statuses=None,
 ):
     """
     Draw the main Focus Buddy monitoring interface.
     """
 
     height, width = image.shape[:2]
+    people_statuses = people_statuses or []
 
     # -----------------------------------------------------
     # BACKGROUND
@@ -157,34 +151,27 @@ def draw_ui(
         WHITE
     )
 
-    draw_text(
-        image,
-        "CURRENT STATUS",
-        (40, 115),
-        0.45,
-        SOFT_TEXT,
-        1
-    )
+    draw_text(image, "LIVE MONITORING", (40, 115), 0.45, SOFT_TEXT, 1)
 
-    # Determine the main message
-    if drowsy_warning or main_status == "Drowsy":
-
-        status_text = "You may be getting drowsy"
+    drowsy_people = [
+        person["number"] for person in people_statuses
+        if person.get("main_state") == "Drowsy"
+    ]
+    away_people = [
+        person["number"] for person in people_statuses
+        if person.get("main_state") == "Looking Away"
+    ]
+    if drowsy_people:
+        status_text = "Eyes closed too long: " + ", ".join(f"Person {n}" for n in drowsy_people)
         status_color = PINK
-
-    elif attention_warning or main_status == "Looking Away":
-
-        status_text = "You are looking away"
+    elif away_people:
+        status_text = "Looking away: " + ", ".join(f"Person {n}" for n in away_people)
         status_color = PURPLE
-
-    elif main_status == "Tracking Lost":
-
-        status_text = "Face not detected"
+    elif not people_statuses or main_status == "Tracking Lost":
+        status_text = "No faces detected"
         status_color = SOFT_TEXT
-
     else:
-
-        status_text = "You look focused!"
+        status_text = f"Monitoring {len(people_statuses)} face" + ("" if len(people_statuses) == 1 else "s")
         status_color = GREEN
 
     draw_text(
@@ -217,96 +204,47 @@ def draw_ui(
         )
 
     # -----------------------------------------------------
-    # EYE CARD
+    # INDIVIDUAL FACE STATUS LIST
     # -----------------------------------------------------
 
     draw_card(
         image,
         20,
         285,
-        width // 2 - 10,
-        420,
-        LIGHT_LAVENDER
-    )
-
-    draw_text(
-        image,
-        "EYES",
-        (40, 315),
-        0.5,
-        SOFT_TEXT,
-        1
-    )
-
-    draw_text(
-        image,
-        eye_status,
-        (40, 350),
-        0.65,
-        DARK_TEXT,
-        2
-    )
-
-    if closed_duration > 0:
-        draw_text(
-            image,
-            f"Closed: {closed_duration:.1f}s",
-            (40, 380),
-            0.42,
-            SOFT_TEXT,
-            1
-        )
-    if average_ear is not None and eye_threshold is not None:
-        draw_text(
-            image,
-            f"EAR: {average_ear:.2f} / threshold: {eye_threshold:.2f}",
-            (40, 405),
-            0.36,
-            SOFT_TEXT,
-            1
-        )
-
-    # -----------------------------------------------------
-    # ATTENTION CARD
-    # -----------------------------------------------------
-
-    draw_card(
-        image,
-        width // 2 + 10,
-        285,
         width - 20,
-        420,
-        LIGHT_PINK
+        height - 45,
+        WHITE
     )
 
-    draw_text(
-        image,
-        "ATTENTION",
-        (width // 2 + 30, 315),
-        0.5,
-        SOFT_TEXT,
-        1
-    )
-
-    draw_text(
-        image,
-        head_status,
-        (width // 2 + 30, 350),
-        0.65,
-        DARK_TEXT,
-        2
-    )
-
-    if head_turn_duration > 0:
-
-        draw_text(
-            image,
-            f"Away: {head_turn_duration:.1f}s",
-            (width // 2 + 30, 380),
-            0.45,
-            SOFT_TEXT,
-            1
-        )
+    draw_text(image, f"PEOPLE IN VIEW  ({len(people_statuses)})", (38, 311), 0.46, SOFT_TEXT, 1)
+    list_top = 320
+    list_bottom = height - 54
+    if people_statuses:
+        row_height = max(20, (list_bottom - list_top) // len(people_statuses))
+        for index, person in enumerate(people_statuses[:5]):
+            row_y = list_top + index * row_height
+            status = person.get("main_state", "Tracking Lost")
+            row_color = LIGHT_PINK if status == "Drowsy" else LIGHT_LAVENDER if status == "Looking Away" else LIGHT_GREEN
+            draw_card(image, 30, row_y, width - 30, row_y + row_height - 2, row_color)
+            details = [
+                f"Person {person['number']}",
+                status,
+                f"Eyes {person.get('eye_status', 'Unknown')}",
+                person.get("head_status", "Unknown"),
+            ]
+            closed = person.get("closed_duration", 0.0)
+            away = person.get("head_turn_duration", 0.0)
+            if closed > 0.1:
+                details.append(f"Closed {closed:.1f}s")
+            if away > 0.1:
+                details.append(f"Away {away:.1f}s")
+            ear = person.get("average_ear")
+            threshold = person.get("eye_threshold")
+            if ear is not None and threshold is not None:
+                details.append(f"EAR {ear:.2f}/{threshold:.2f}")
+            draw_text(image, "  |  ".join(details), (42, row_y + row_height - 6), 0.34, DARK_TEXT, 1)
+    else:
+        draw_text(image, "No faces detected. Move into the camera view.", (42, 350), 0.48, SOFT_TEXT, 1)
 
     # -----------------------------------------------------
     # MONITORING INDICATOR

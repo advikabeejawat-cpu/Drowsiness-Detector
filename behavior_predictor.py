@@ -1,10 +1,8 @@
-"""Learn a small, personal short-term distraction predictor from session CSVs.
+"""Learn a personal short-term distraction predictor from saved session CSVs.
 
-The training target is whether a Looking Away event begins in the next 10s.
-Features summarize distraction and tracking events in the preceding 15 seconds.
-Blink counts are deliberately excluded: normal blinking is not a warning sign.
-A smoothed Naive Bayes
-classifier keeps this dependency-free and retrains from local session logs.
+The training target is whether a look-away or prolonged eye-closure event
+starts in the next 10 seconds. Recent look-away, prolonged-closure, and
+tracking-loss events provide context; normal blinks are excluded.
 """
 
 import csv
@@ -16,7 +14,13 @@ import os
 BUCKET_SECONDS = 5
 HISTORY_SECONDS = 15
 PREDICTION_SECONDS = 10
-FEATURES = ("away", "tracking")
+DISTRACTION_TYPES = {"Looking Away", "Prolonged Eye Closure"}
+FEATURE_TYPES = {
+    "Looking Away": "away",
+    "Prolonged Eye Closure": "eye_closed",
+    "Tracking Lost": "tracking",
+}
+FEATURES = ("away", "eye_closed", "tracking")
 MIN_TRAINING_WINDOWS = 12
 MIN_POSITIVE_WINDOWS = 3
 MIN_NEGATIVE_WINDOWS = 3
@@ -31,29 +35,41 @@ class BehaviorPredictor:
         self.retrain()
 
     @staticmethod
-    def _read_events(path):
+    def _read_session(path):
         events = []
+        session_duration = None
         try:
             with open(path, newline="", encoding="utf-8-sig") as source:
                 for row in csv.DictReader(source):
                     kind = (row.get("Event Type") or "").strip()
+                    if kind == "Session Duration":
+                        try:
+                            session_duration = max(0.0, float(row.get("Duration", "")))
+                        except (TypeError, ValueError):
+                            pass
+                        continue
                     try:
                         start = float(row.get("Start Time", ""))
                         end = float(row.get("End Time", ""))
                         duration = float(row.get("Duration", ""))
                     except (TypeError, ValueError):
                         continue
-                    if kind in ("Looking Away", "Blink", "Tracking Lost") and start >= 0 and end >= start:
+                    if kind in (*FEATURE_TYPES, "Blink") and start >= 0 and end >= start:
                         events.append((kind, start, end, max(0.0, duration)))
         except (OSError, csv.Error):
-            return []
+            return [], None
+        return events, session_duration
+
+    @classmethod
+    def _read_events(cls, path):
+        """Compatibility helper for code that needs only event rows."""
+        events, _session_duration = cls._read_session(path)
         return events
 
     @staticmethod
     def _features(events, at_time):
         start = at_time - HISTORY_SECONDS
-        counts = {"away": 0.0, "tracking": 0.0}
-        names = {"Looking Away": "away", "Tracking Lost": "tracking"}
+        counts = {feature: 0.0 for feature in FEATURES}
         for event in events:
             if isinstance(event, dict):
                 kind = event.get("type")
@@ -67,35 +83,47 @@ class BehaviorPredictor:
             except (TypeError, ValueError):
                 continue
             if event_start <= at_time and event_end >= start:
-                feature_name = names.get(kind)
+                feature_name = FEATURE_TYPES.get(kind)
                 if feature_name is not None:
                     counts[feature_name] += 1.0
         return counts
 
     @classmethod
-    def _examples(cls, events):
-        if not events:
+    def _examples(cls, events, session_duration=None):
+        if not events and session_duration is None:
             return []
-        # The CSV does not store session end time. Treat the final forecast
-        # before the last recorded event as unobserved instead of labeling it
-        # negative simply because no later event appears in the file.
-        last = max(event[2] for event in events) - PREDICTION_SECONDS
+        # New logs include the session boundary, allowing quiet/no-event
+        # intervals to count as negatives. Legacy files have no boundary, so
+        # conservatively stop before their last observed event.
+        observed_until = (
+            session_duration
+            if session_duration is not None
+            else max(event[2] for event in events)
+        )
+        last = observed_until - PREDICTION_SECONDS
         samples = []
         first_index = int(HISTORY_SECONDS // BUCKET_SECONDS)
         for index in range(first_index, int(last // BUCKET_SECONDS) + 1):
             at_time = index * BUCKET_SECONDS
             features = cls._features(events, at_time)
-            future_away = any(
-                kind == "Looking Away" and at_time <= start < at_time + PREDICTION_SECONDS
+            future_distraction = any(
+                kind in DISTRACTION_TYPES and at_time <= start < at_time + PREDICTION_SECONDS
                 for kind, start, _end, _duration in events
             )
-            samples.append((features, int(future_away)))
+            samples.append((features, int(future_distraction)))
         return samples
 
     def retrain(self, additional_events=None):
         examples = []
-        for path in glob.glob(os.path.join(self.directory, "session_*.csv")):
-            examples.extend(self._examples(self._read_events(path)))
+        paths = glob.glob(os.path.join(self.directory, "**", "session_*.csv"), recursive=True)
+        paths = [
+            path for path in paths
+            if not any(part.lower() in {".git", ".venv", "venv", "__pycache__"}
+                       for part in os.path.normpath(path).split(os.sep))
+        ]
+        for path in paths:
+            events, session_duration = self._read_session(path)
+            examples.extend(self._examples(events, session_duration))
         if additional_events:
             examples.extend(self._examples(additional_events))
         self.sample_count = len(examples)
@@ -147,6 +175,7 @@ class BehaviorPredictor:
         )
         driver_label = {
             "away": "recent looking-away events",
+            "eye_closed": "recent prolonged eye-closure events",
             "tracking": "recent tracking interruptions",
         }[driver]
         return {
@@ -159,7 +188,8 @@ class BehaviorPredictor:
     def session_insight(self, current_events):
         """Compare this session's away episodes with the user's history."""
         historical_durations = []
-        for path in glob.glob(os.path.join(self.directory, "session_*.csv")):
+        paths = glob.glob(os.path.join(self.directory, "**", "session_*.csv"), recursive=True)
+        for path in paths:
             historical_durations.extend(
                 duration for kind, _start, _end, duration in self._read_events(path)
                 if kind == "Looking Away" and duration > 0
