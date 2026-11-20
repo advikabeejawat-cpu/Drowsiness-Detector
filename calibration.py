@@ -70,10 +70,11 @@ class Calibration:
         if not self.active:
             return
 
-        # Calibration should represent the user's open-eye baseline. A low EAR
-        # sample is likely a blink or a closed-eye frame and would otherwise
-        # pull the personalized threshold down enough to miss later closures.
-        if ear is not None and ear >= EAR_THRESHOLD:
+        # Keep every valid measurement. The baseline calculation below uses
+        # the upper portion of the samples so brief blinks/closures do not
+        # dominate, without rejecting naturally low EAR values at a fixed
+        # default cutoff.
+        if ear is not None and ear > 0:
 
             self.ear_values.append(ear)
 
@@ -106,16 +107,9 @@ class Calibration:
         # EYE CALIBRATION
         # ----------------------------------
 
-        if self.ear_values:
-
-            self.baseline_ear = statistics.median(
-                self.ear_values
-            )
-
-            self.eye_threshold = min(
-                0.30,
-                max(0.18, self.baseline_ear * 0.70),
-            )
+        self.baseline_ear = self.get_eye_baseline()
+        if self.baseline_ear is not None:
+            self.eye_threshold = self._threshold_from_baseline(self.baseline_ear)
 
 
         # ----------------------------------
@@ -191,6 +185,24 @@ class Calibration:
 
         return self.eye_threshold
 
+    def get_eye_baseline(self):
+        """Estimate open-eye EAR from the higher, likely-open samples."""
+        if len(self.ear_values) < 10:
+            return None
+        ordered = sorted(self.ear_values)
+        open_samples = ordered[int(len(ordered) * 0.40):]
+        return statistics.median(open_samples)
+
+    @staticmethod
+    def _threshold_from_baseline(baseline):
+        return min(0.30, max(0.12, baseline * 0.70))
+
+    def get_eye_threshold_preview(self):
+        baseline = self.get_eye_baseline()
+        if baseline is None:
+            return None
+        return self._threshold_from_baseline(baseline)
+
 
     # ======================================
     # HEAD THRESHOLDS
@@ -213,6 +225,7 @@ class Calibration:
         return {
             "baseline_ear": self.baseline_ear,
             "eye_threshold": self.eye_threshold,
+            "eye_threshold_preview": self.get_eye_threshold_preview(),
             "baseline_head": self.baseline_head,
             "head_low": self.head_low,
             "head_high": self.head_high,

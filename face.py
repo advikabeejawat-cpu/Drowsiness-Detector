@@ -329,7 +329,10 @@ while cap.isOpened():
             image,
             calibration.get_progress(),
             calibration.get_remaining_time(),
-            face_detected
+            face_detected,
+            ear_sample_count=len(calibration.ear_values),
+            ear_baseline=calibration.get_eye_baseline(),
+            threshold_preview=calibration.get_eye_threshold_preview(),
         )
 
 

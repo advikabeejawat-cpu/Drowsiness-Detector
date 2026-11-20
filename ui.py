@@ -287,7 +287,10 @@ def draw_calibration_ui(
     image,
     progress,
     remaining_time,
-    face_detected
+    face_detected,
+    ear_sample_count=0,
+    ear_baseline=None,
+    threshold_preview=None,
 ):
     """
     Display the calibration screen.
@@ -357,7 +360,7 @@ def draw_calibration_ui(
         40,
         120,
         width - 40,
-        330,
+        455,
         WHITE
     )
 
@@ -406,13 +409,23 @@ def draw_calibration_ui(
         )
 
     # -----------------------------------------------------
+    draw_text(
+        image,
+        f"Valid eye samples: {ear_sample_count}",
+        (70, 245),
+        0.44,
+        DARK_TEXT if ear_sample_count else PINK,
+        1,
+    )
+
+    # -----------------------------------------------------
     # PROGRESS BAR
     # -----------------------------------------------------
 
     bar_x1 = 70
     bar_x2 = width - 70
-    bar_y1 = 260
-    bar_y2 = 285
+    bar_y1 = 265
+    bar_y2 = 287
 
     cv2.rectangle(
         image,
@@ -443,7 +456,7 @@ def draw_calibration_ui(
     draw_text(
         image,
         f"{remaining_time:.1f} seconds remaining",
-        (70, 325),
+        (70, 322),
         0.55,
         DARK_TEXT,
         1
@@ -451,17 +464,26 @@ def draw_calibration_ui(
 
     draw_text(
         image,
-        "Keep your head centered and eyes open.",
-        (70, 365),
+        "Open-eye EAR baseline: " + (f"{ear_baseline:.3f}" if ear_baseline is not None else "collecting..."),
+        (70, 357),
         0.4,
-        SOFT_TEXT,
+        GREEN if ear_baseline is not None else SOFT_TEXT,
         1
     )
 
     draw_text(
         image,
-        "Calibration will automatically finish.",
-        (70, 395),
+        "Eye threshold preview: " + (f"{threshold_preview:.3f}" if threshold_preview is not None else "waiting for samples"),
+        (70, 386),
+        0.4,
+        DARK_TEXT,
+        1
+    )
+
+    draw_text(
+        image,
+        "Keep your head centered and eyes open; calibration finishes automatically.",
+        (70, 420),
         0.4,
         SOFT_TEXT,
         1

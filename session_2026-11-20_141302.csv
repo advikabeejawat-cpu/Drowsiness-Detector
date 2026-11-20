@@ -1,0 +1,47 @@
+Event Type,Person,Start Time,End Time,Duration
+Session Duration,,0,56.26,56.26
+Blink,1,5.67,5.91,0.24
+Blink,1,8.13,8.37,0.24
+Looking Away,1,7.22,10.12,2.9
+Tracking Lost,1,10.34,10.65,0.31
+Blink,1,10.66,11.14,0.48
+Tracking Lost,2,12.57,12.6,0.03
+Tracking Lost,2,12.65,12.68,0.03
+Tracking Lost,2,12.72,12.74,0.02
+Tracking Lost,2,12.77,12.81,0.03
+Tracking Lost,2,12.84,12.87,0.03
+Tracking Lost,2,12.91,12.92,0.02
+Tracking Lost,2,12.95,13.01,0.06
+Tracking Lost,2,13.05,13.18,0.13
+Tracking Lost,2,13.22,13.25,0.03
+Tracking Lost,2,13.28,13.31,0.03
+Tracking Lost,2,13.34,13.37,0.03
+Tracking Lost,2,13.42,13.45,0.03
+Blink,1,12.45,13.67,1.22
+Looking Away,1,13.39,21.19,7.79
+Tracking Lost,1,28.14,28.17,0.03
+Tracking Lost,1,28.2,28.29,0.1
+Tracking Lost,1,28.41,28.44,0.04
+Tracking Lost,1,28.48,28.51,0.03
+Tracking Lost,1,28.54,28.57,0.03
+Tracking Lost,1,28.66,28.71,0.05
+Tracking Lost,1,30.26,31.0,0.74
+Tracking Lost,1,31.06,31.1,0.03
+Tracking Lost,1,31.21,31.24,0.03
+Blink,1,31.25,31.38,0.13
+Blink,1,31.42,31.56,0.14
+Blink,1,31.72,31.75,0.03
+Blink,1,31.79,31.83,0.04
+Blink,1,31.86,31.96,0.09
+Tracking Lost,1,32.49,32.82,0.33
+Tracking Lost,1,33.46,34.1,0.64
+Tracking Lost,1,34.34,34.37,0.03
+Tracking Lost,1,34.41,34.47,0.06
+Tracking Lost,1,34.5,34.54,0.03
+Tracking Lost,1,34.57,39.43,4.86
+Blink,1,41.24,41.27,0.03
+Looking Away,1,39.44,41.91,2.46
+Blink,1,42.58,42.72,0.15
+Looking Away,1,43.22,52.44,9.21
+Blink,1,52.77,53.01,0.24
+Tracking Lost,2,13.72,56.26,42.54
